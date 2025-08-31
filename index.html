@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- External libraries from CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html-to-image/1.11.13/html-to-image.min.js"></script>
     <style>
         * {margin:0;padding:0;box-sizing:border-box;}
         body {
@@ -104,15 +103,725 @@
                 <h3>Recent Activity</h3>
                 <div id="recent-activity"><div class="card"><p>Welcome to your Library Management System! Start by adding some books and users.</p></div></div>
             </div>
-            <!-- Add the rest of the sections here (Books, Users, Loans, Reports, Modals) -->
-            <!-- For brevity, you can copy from your saved_resource.html -->
+            <!-- Books Section -->
+            <div id="books" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <h2>Book Management</h2>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                        <button class="btn btn-success" onclick="openBookModal()">+ Add New Book</button>
+                        <input type="file" id="import-books" accept=".xlsx,.xls,.csv" style="display: none;" onchange="importBooks(event)">
+                        <button class="btn" onclick="document.getElementById('import-books').click()">📁 Import Books</button>
+                        <button class="btn btn-warning" onclick="exportBooks()">📤 Export Books</button>
+                    </div>
+                </div>
+                <input type="text" class="search-box" id="book-search" placeholder="Search books by title, author, ISBN..." onkeyup="searchBooks()">
+                <div id="books-list" class="grid">
+                    <div class="card">
+                        <p>No books in the library yet. Click "Add New Book" to get started!</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Users Section -->
+            <div id="users" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 10px;">
+                    <h2>User Management</h2>
+                    <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                        <button class="btn btn-success" onclick="openUserModal()">+ Add New User</button>
+                        <input type="file" id="import-users" accept=".xlsx,.xls,.csv" style="display: none;" onchange="importUsers(event)">
+                        <button class="btn" onclick="document.getElementById('import-users').click()">📁 Import Users</button>
+                        <button class="btn btn-warning" onclick="exportUsers()">📤 Export Users</button>
+                    </div>
+                </div>
+                <input type="text" class="search-box" id="user-search" placeholder="Search users by name, email..." onkeyup="searchUsers()">
+                <div id="users-list" class="grid">
+                    <div class="card">
+                        <p>No users registered yet. Click "Add New User" to get started!</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Loans Section -->
+            <div id="loans" class="section">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap;">
+                    <h2>Loan Management</h2>
+                    <button class="btn btn-success" onclick="openLoanModal()">+ New Loan</button>
+                </div>
+                <input type="text" class="search-box" id="loan-search" placeholder="Search loans..." onkeyup="searchLoans()">
+                <div id="loans-list">
+                    <div class="card">
+                        <p>No loans recorded yet. Add some books and users first, then create loans!</p>
+                    </div>
+                </div>
+            </div>
+            <!-- Reports Section -->
+            <div id="reports" class="section">
+                <h2>Reports & Analytics</h2>
+                <div class="grid">
+                    <div class="card">
+                        <h3>Popular Books</h3>
+                        <div id="popular-books">
+                            <p>No loan data available yet.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Active Borrowers</h3>
+                        <div id="active-borrowers">
+                            <p>No active borrowers yet.</p>
+                        </div>
+                    </div>
+                    <div class="card">
+                        <h3>Overdue Items</h3>
+                        <div id="overdue-items">
+                            <p>No overdue items.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-    <!-- Add modal dialogs and full JavaScript from your previous file here (if you want full features) -->
+    <!-- Book Modal -->
+    <div id="book-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('book-modal')">×</span>
+            <h3 id="book-modal-title">Add New Book</h3>
+            <form id="book-form" onsubmit="saveBook(event)">
+                <div class="form-group">
+                    <label>Title:</label>
+                    <input type="text" id="book-title" required>
+                </div>
+                <div class="form-group">
+                    <label>Author:</label>
+                    <input type="text" id="book-author" required>
+                </div>
+                <div class="form-group">
+                    <label>ISBN:</label>
+                    <input type="text" id="book-isbn">
+                </div>
+                <div class="form-group">
+                    <label>Publisher:</label>
+                    <input type="text" id="book-publisher">
+                </div>
+                <div class="form-group">
+                    <label>Publication Year:</label>
+                    <input type="number" id="book-year">
+                </div>
+                <div class="form-group">
+                    <label>Category:</label>
+                    <input type="text" id="book-category">
+                </div>
+                <div class="form-group">
+                    <label>Location:</label>
+                    <input type="text" id="book-location" placeholder="Shelf A1, Section 2">
+                </div>
+                <button type="submit" class="btn btn-success">Save Book</button>
+                <button type="button" class="btn" onclick="closeModal('book-modal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <!-- User Modal -->
+    <div id="user-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('user-modal')">×</span>
+            <h3 id="user-modal-title">Add New User</h3>
+            <form id="user-form" onsubmit="saveUser(event)">
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" id="user-name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" id="user-email" required>
+                </div>
+                <div class="form-group">
+                    <label>User Type:</label>
+                    <select id="user-type" required>
+                        <option value="student">Student</option>
+                        <option value="teacher">Teacher</option>
+                        <option value="staff">Staff</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Phone:</label>
+                    <input type="tel" id="user-phone">
+                </div>
+                <div class="form-group">
+                    <label>Department/Class:</label>
+                    <input type="text" id="user-department">
+                </div>
+                <button type="submit" class="btn btn-success">Save User</button>
+                <button type="button" class="btn" onclick="closeModal('user-modal')">Cancel</button>
+            </form>
+        </div>
+    </div>
+    <!-- Loan Modal -->
+    <div id="loan-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal('loan-modal')">×</span>
+            <h3>New Loan</h3>
+            <form id="loan-form" onsubmit="saveLoan(event)">
+                <div class="form-group">
+                    <label>Select Book:</label>
+                    <select id="loan-book" required>
+                        <option value="">Select a book...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Select User:</label>
+                    <select id="loan-user" required>
+                        <option value="">Select a user...</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Due Date:</label>
+                    <input type="date" id="loan-due-date" required>
+                </div>
+                <button type="submit" class="btn btn-success">Create Loan</button>
+                <button type="button" class="btn" onclick="closeModal('loan-modal')">Cancel</button>
+            </form>
+        </div>
+    </div>
     <script>
-        // Paste all your JavaScript here from saved_resource.html
-        // Remove any references to window.parent, claude, or storage code.
-        // Your app will now run fully in the browser!
+        // Data storage using variables (for demo; use localStorage for persistence)
+        let books = [];
+        let users = [];
+        let loans = [];
+        let currentEditId = null;
+        let nextBookId = 1;
+        let nextUserId = 1;
+        let nextLoanId = 1;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDashboard();
+            setDefaultDueDate();
+        });
+
+        function importBooks(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    if (file.name.endsWith('.csv')) {
+                        data = parseCSV(e.target.result);
+                    } else {
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        data = XLSX.utils.sheet_to_json(sheet);
+                    }
+                    const importedBooks = data.map(row => ({
+                        id: nextBookId++,
+                        title: row.title || row.Title || row.TITLE || '',
+                        author: row.author || row.Author || row.AUTHOR || '',
+                        isbn: row.isbn || row.ISBN || row.Isbn || '',
+                        publisher: row.publisher || row.Publisher || row.PUBLISHER || '',
+                        year: row.year || row.Year || row.YEAR || '',
+                        category: row.category || row.Category || row.CATEGORY || '',
+                        location: row.location || row.Location || row.LOCATION || ''
+                    })).filter(book => book.title && book.author);
+                    books = books.concat(importedBooks);
+                    renderBooks();
+                    updateDashboard();
+                    alert(`Successfully imported ${importedBooks.length} books!`);
+                } catch (error) {
+                    alert('Error importing file. Please check the format and try again.');
+                }
+            };
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function importUsers(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    let data;
+                    if (file.name.endsWith('.csv')) {
+                        data = parseCSV(e.target.result);
+                    } else {
+                        const workbook = XLSX.read(e.target.result, { type: 'binary' });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        data = XLSX.utils.sheet_to_json(sheet);
+                    }
+                    const importedUsers = data.map(row => ({
+                        id: nextUserId++,
+                        name: row.name || row.Name || row.NAME || '',
+                        email: row.email || row.Email || row.EMAIL || '',
+                        type: (row.type || row.Type || row.TYPE || 'student').toLowerCase(),
+                        phone: row.phone || row.Phone || row.PHONE || '',
+                        department: row.department || row.Department || row.DEPARTMENT || row.class || row.Class || row.CLASS || ''
+                    })).filter(user => user.name && user.email);
+                    users = users.concat(importedUsers);
+                    renderUsers();
+                    updateLoanDropdowns();
+                    updateDashboard();
+                    alert(`Successfully imported ${importedUsers.length} users!`);
+                } catch (error) {
+                    alert('Error importing file. Please check the format and try again.');
+                }
+            };
+            if (file.name.endsWith('.csv')) {
+                reader.readAsText(file);
+            } else {
+                reader.readAsBinaryString(file);
+            }
+        }
+
+        function parseCSV(csvText) {
+            const lines = csvText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim()) {
+                    const values = lines[i].split(',').map(v => v.trim().replace(/"/g, ''));
+                    const row = {};
+                    headers.forEach((header, index) => {
+                        row[header] = values[index] || '';
+                    });
+                    data.push(row);
+                }
+            }
+            return data;
+        }
+
+        function exportBooks() {
+            if (books.length === 0) {
+                alert('No books to export!');
+                return;
+            }
+            const exportData = books.map(book => ({
+                Title: book.title,
+                Author: book.author,
+                ISBN: book.isbn || '',
+                Publisher: book.publisher || '',
+                Year: book.year || '',
+                Category: book.category || '',
+                Location: book.location || '',
+                Status: loans.some(loan => loan.bookId === book.id && !loan.returned) ? 'On Loan' : 'Available'
+            }));
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Books');
+            const fileName = `UCSI_Library_Books_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+        }
+
+        function exportUsers() {
+            if (users.length === 0) {
+                alert('No users to export!');
+                return;
+            }
+            const exportData = users.map(user => {
+                const activeLoans = loans.filter(loan => loan.userId === user.id && !loan.returned).length;
+                return {
+                    Name: user.name,
+                    Email: user.email,
+                    Type: user.type,
+                    Phone: user.phone || '',
+                    Department: user.department || '',
+                    'Active Loans': activeLoans
+                };
+            });
+            const worksheet = XLSX.utils.json_to_sheet(exportData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, 'Users');
+            const fileName = `UCSI_Library_Users_${new Date().toISOString().split('T')[0]}.xlsx`;
+            XLSX.writeFile(workbook, fileName);
+        }
+
+        function showSection(sectionName) {
+            document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(sectionName).classList.add('active');
+            event.target.classList.add('active');
+            if (sectionName === 'dashboard') updateDashboard();
+            else if (sectionName === 'reports') generateReports();
+        }
+
+        function updateDashboard() {
+            document.getElementById('total-books').textContent = books.length;
+            document.getElementById('total-users').textContent = users.length;
+            document.getElementById('active-loans').textContent = loans.filter(loan => !loan.returned).length;
+            document.getElementById('overdue-loans').textContent = loans.filter(loan => !loan.returned && new Date(loan.dueDate) < new Date()).length;
+            const recentActivity = document.getElementById('recent-activity');
+            const recentLoans = loans.slice(-5).reverse();
+            if (recentLoans.length === 0) {
+                recentActivity.innerHTML = '<div class="card"><p>Welcome to your Library Management System! Start by adding some books and users.</p></div>';
+            } else {
+                recentActivity.innerHTML = recentLoans.map(loan => {
+                    const book = books.find(b => b.id === loan.bookId);
+                    const user = users.find(u => u.id === loan.userId);
+                    const status = loan.returned ? 'Returned' : 'Borrowed';
+                    return `<div class="card"><strong>${book?.title || 'Unknown Book'}</strong> ${status.toLowerCase()} by <strong>${user?.name || 'Unknown User'}</strong> on ${new Date(loan.loanDate).toLocaleDateString()}</div>`;
+                }).join('');
+            }
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            currentEditId = null;
+        }
+
+        function setDefaultDueDate() {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 14);
+            document.getElementById('loan-due-date').value = dueDate.toISOString().split('T')[0];
+        }
+
+        function openBookModal(book = null) {
+            document.getElementById('book-modal').style.display = 'block';
+            document.getElementById('book-modal-title').textContent = book ? 'Edit Book' : 'Add New Book';
+            if (book) {
+                currentEditId = book.id;
+                document.getElementById('book-title').value = book.title || '';
+                document.getElementById('book-author').value = book.author || '';
+                document.getElementById('book-isbn').value = book.isbn || '';
+                document.getElementById('book-publisher').value = book.publisher || '';
+                document.getElementById('book-year').value = book.year || '';
+                document.getElementById('book-category').value = book.category || '';
+                document.getElementById('book-location').value = book.location || '';
+            } else {
+                currentEditId = null;
+                document.getElementById('book-form').reset();
+            }
+        }
+
+        function saveBook(event) {
+            event.preventDefault();
+            const bookData = {
+                title: document.getElementById('book-title').value,
+                author: document.getElementById('book-author').value,
+                isbn: document.getElementById('book-isbn').value,
+                publisher: document.getElementById('book-publisher').value,
+                year: document.getElementById('book-year').value,
+                category: document.getElementById('book-category').value,
+                location: document.getElementById('book-location').value
+            };
+            if (currentEditId) {
+                const bookIndex = books.findIndex(book => book.id === currentEditId);
+                if (bookIndex !== -1) books[bookIndex] = { ...books[bookIndex], ...bookData };
+            } else {
+                books.push({ id: nextBookId++, ...bookData });
+            }
+            closeModal('book-modal');
+            renderBooks();
+            updateDashboard();
+        }
+
+        function renderBooks() {
+            const booksList = document.getElementById('books-list');
+            if (books.length === 0) {
+                booksList.innerHTML = '<div class="card"><p>No books in the library yet. Click "Add New Book" to get started!</p></div>';
+                return;
+            }
+            booksList.innerHTML = books.map(book => {
+                const isAvailable = !loans.some(loan => loan.bookId === book.id && !loan.returned);
+                return `<div class="card">
+                        <h3>${book.title}</h3>
+                        <p><strong>Author:</strong> ${book.author}</p>
+                        <p><strong>ISBN:</strong> ${book.isbn || 'N/A'}</p>
+                        <p><strong>Publisher:</strong> ${book.publisher || 'N/A'}</p>
+                        <p><strong>Year:</strong> ${book.year || 'N/A'}</p>
+                        <p><strong>Category:</strong> ${book.category || 'N/A'}</p>
+                        <p><strong>Location:</strong> ${book.location || 'N/A'}</p>
+                        <p class="${isAvailable ? 'status-available' : 'status-borrowed'}">${isAvailable ? '✅ Available' : '❌ On Loan'}</p>
+                        <div style="margin-top: 15px;">
+                            <button class="btn" onclick="editBook(${book.id})">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteBook(${book.id})">Delete</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function editBook(id) {
+            const book = books.find(b => b.id === id);
+            if (book) openBookModal(book);
+        }
+
+        function deleteBook(id) {
+            if (confirm('Are you sure you want to delete this book?')) {
+                books = books.filter(book => book.id !== id);
+                renderBooks();
+                updateDashboard();
+            }
+        }
+
+        function searchBooks() {
+            const searchTerm = document.getElementById('book-search').value.toLowerCase();
+            const filteredBooks = books.filter(book =>
+                book.title.toLowerCase().includes(searchTerm) ||
+                book.author.toLowerCase().includes(searchTerm) ||
+                (book.isbn && book.isbn.toLowerCase().includes(searchTerm)) ||
+                (book.category && book.category.toLowerCase().includes(searchTerm))
+            );
+            const booksList = document.getElementById('books-list');
+            if (filteredBooks.length === 0 && books.length > 0) {
+                booksList.innerHTML = '<div class="card"><p>No books found matching your search.</p></div>';
+                return;
+            }
+            const originalBooks = [...books];
+            books = filteredBooks;
+            renderBooks();
+            books = originalBooks;
+        }
+
+        function openUserModal(user = null) {
+            document.getElementById('user-modal').style.display = 'block';
+            document.getElementById('user-modal-title').textContent = user ? 'Edit User' : 'Add New User';
+            if (user) {
+                currentEditId = user.id;
+                document.getElementById('user-name').value = user.name || '';
+                document.getElementById('user-email').value = user.email || '';
+                document.getElementById('user-type').value = user.type || 'student';
+                document.getElementById('user-phone').value = user.phone || '';
+                document.getElementById('user-department').value = user.department || '';
+            } else {
+                currentEditId = null;
+                document.getElementById('user-form').reset();
+            }
+        }
+
+        function saveUser(event) {
+            event.preventDefault();
+            const userData = {
+                name: document.getElementById('user-name').value,
+                email: document.getElementById('user-email').value,
+                type: document.getElementById('user-type').value,
+                phone: document.getElementById('user-phone').value,
+                department: document.getElementById('user-department').value
+            };
+            if (currentEditId) {
+                const userIndex = users.findIndex(user => user.id === currentEditId);
+                if (userIndex !== -1) users[userIndex] = { ...users[userIndex], ...userData };
+            } else {
+                users.push({ id: nextUserId++, ...userData });
+            }
+            closeModal('user-modal');
+            renderUsers();
+            updateLoanDropdowns();
+            updateDashboard();
+        }
+
+        function renderUsers() {
+            const usersList = document.getElementById('users-list');
+            if (users.length === 0) {
+                usersList.innerHTML = '<div class="card"><p>No users registered yet. Click "Add New User" to get started!</p></div>';
+                return;
+            }
+            usersList.innerHTML = users.map(user => {
+                const activeLoans = loans.filter(loan => loan.userId === user.id && !loan.returned).length;
+                return `<div class="card">
+                        <h3>${user.name}</h3>
+                        <p><strong>Email:</strong> ${user.email}</p>
+                        <p><strong>Type:</strong> ${user.type}</p>
+                        <p><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
+                        <p><strong>Department/Class:</strong> ${user.department || 'N/A'}</p>
+                        <p><strong>Active Loans:</strong> ${activeLoans}</p>
+                        <div style="margin-top: 15px;">
+                            <button class="btn" onclick="editUser(${user.id})">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteUser(${user.id})">Delete</button>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        function editUser(id) {
+            const user = users.find(u => u.id === id);
+            if (user) openUserModal(user);
+        }
+
+        function deleteUser(id) {
+            const hasActiveLoans = loans.some(loan => loan.userId === id && !loan.returned);
+            if (hasActiveLoans) {
+                alert('Cannot delete user with active loans. Please return all books first.');
+                return;
+            }
+            if (confirm('Are you sure you want to delete this user?')) {
+                users = users.filter(user => user.id !== id);
+                renderUsers();
+                updateLoanDropdowns();
+                updateDashboard();
+            }
+        }
+
+        function searchUsers() {
+            const searchTerm = document.getElementById('user-search').value.toLowerCase();
+            const filteredUsers = users.filter(user =>
+                user.name.toLowerCase().includes(searchTerm) ||
+                user.email.toLowerCase().includes(searchTerm) ||
+                user.type.toLowerCase().includes(searchTerm)
+            );
+            const usersList = document.getElementById('users-list');
+            if (filteredUsers.length === 0 && users.length > 0) {
+                usersList.innerHTML = '<div class="card"><p>No users found matching your search.</p></div>';
+                return;
+            }
+            const originalUsers = [...users];
+            users = filteredUsers;
+            renderUsers();
+            users = originalUsers;
+        }
+
+        function openLoanModal() {
+            if (books.length === 0) {
+                alert('Please add some books first before creating loans.');
+                return;
+            }
+            if (users.length === 0) {
+                alert('Please add some users first before creating loans.');
+                return;
+            }
+            document.getElementById('loan-modal').style.display = 'block';
+            updateLoanDropdowns();
+            setDefaultDueDate();
+        }
+
+        function updateLoanDropdowns() {
+            const bookSelect = document.getElementById('loan-book');
+            const availableBooks = books.filter(book =>
+                !loans.some(loan => loan.bookId === book.id && !loan.returned)
+            );
+            bookSelect.innerHTML = '<option value="">Select a book...</option>' +
+                availableBooks.map(book =>
+                    `<option value="${book.id}">${book.title} by ${book.author}</option>`
+                ).join('');
+            const userSelect = document.getElementById('loan-user');
+            userSelect.innerHTML = '<option value="">Select a user...</option>' +
+                users.map(user =>
+                    `<option value="${user.id}">${user.name} (${user.type})</option>`
+                ).join('');
+        }
+
+        function saveLoan(event) {
+            event.preventDefault();
+            const loanData = {
+                id: nextLoanId++,
+                bookId: parseInt(document.getElementById('loan-book').value),
+                userId: parseInt(document.getElementById('loan-user').value),
+                loanDate: new Date().toISOString().split('T')[0],
+                dueDate: document.getElementById('loan-due-date').value,
+                returned: false
+            };
+            loans.push(loanData);
+            closeModal('loan-modal');
+            renderLoans();
+            renderBooks();
+            updateDashboard();
+        }
+
+        function renderLoans() {
+            const loansList = document.getElementById('loans-list');
+            if (loans.length === 0) {
+                loansList.innerHTML = '<div class="card"><p>No loans recorded yet. Add some books and users first, then create loans!</p></div>';
+                return;
+            }
+            loansList.innerHTML = loans.map(loan => {
+                const book = books.find(b => b.id === loan.bookId);
+                const user = users.find(u => u.id === loan.userId);
+                const isOverdue = !loan.returned && new Date(loan.dueDate) < new Date();
+                return `<div class="card">
+                        <h3>${book?.title || 'Unknown Book'}</h3>
+                        <div class="loan-info">
+                            <p><strong>Borrower:</strong> ${user?.name || 'Unknown User'}</p>
+                            <p><strong>Loan Date:</strong> ${new Date(loan.loanDate).toLocaleDateString()}</p>
+                            <p><strong>Due Date:</strong> ${new Date(loan.dueDate).toLocaleDateString()}</p>
+                            ${loan.returned ?
+                                `<p><strong>Return Date:</strong> ${new Date(loan.returnDate).toLocaleDateString()}</p>` :
+                                `<p class="${isOverdue ? 'status-borrowed' : 'status-available'}">
+                                    ${isOverdue ? '⚠️ OVERDUE' : '📅 Active Loan'}
+                                </p>`
+                            }
+                        </div>
+                        ${!loan.returned ?
+                            `<button class="btn btn-success" onclick="returnBook(${loan.id})">Mark as Returned</button>` :
+                            '<p class="status-available">✅ Returned</p>'
+                        }
+                    </div>`;
+            }).join('');
+        }
+
+        function returnBook(loanId) {
+            const loan = loans.find(l => l.id === loanId);
+            if (loan) {
+                loan.returned = true;
+                loan.returnDate = new Date().toISOString().split('T')[0];
+                renderLoans();
+                renderBooks();
+                updateDashboard();
+            }
+        }
+
+        function searchLoans() {
+            const searchTerm = document.getElementById('loan-search').value.toLowerCase();
+            const filteredLoans = loans.filter(loan => {
+                const book = books.find(b => b.id === loan.bookId);
+                const user = users.find(u => u.id === loan.userId);
+                return (book?.title.toLowerCase().includes(searchTerm)) ||
+                    (user?.name.toLowerCase().includes(searchTerm));
+            });
+            const loansList = document.getElementById('loans-list');
+            if (filteredLoans.length === 0 && loans.length > 0) {
+                loansList.innerHTML = '<div class="card"><p>No loans found matching your search.</p></div>';
+                return;
+            }
+            const originalLoans = [...loans];
+            loans = filteredLoans;
+            renderLoans();
+            loans = originalLoans;
+        }
+
+        function generateReports() {
+            // Popular books
+            const bookLoans = {};
+            loans.forEach(loan => {
+                bookLoans[loan.bookId] = (bookLoans[loan.bookId] || 0) + 1;
+            });
+            const popularBooks = Object.entries(bookLoans)
+                .map(([bookId, count]) => {
+                    const book = books.find(b => b.id === parseInt(bookId));
+                    return { book, count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+            document.getElementById('popular-books').innerHTML = popularBooks.length > 0 ?
+                popularBooks.map(item => `<p>${item.book?.title} (${item.count} loans)</p>`).join('') :
+                '<p>No loan data available yet.</p>';
+
+            // Active borrowers
+            const userLoans = {};
+            loans.filter(loan => !loan.returned).forEach(loan => {
+                userLoans[loan.userId] = (userLoans[loan.userId] || 0) + 1;
+            });
+            const activeBorrowers = Object.entries(userLoans)
+                .map(([userId, count]) => {
+                    const user = users.find(u => u.id === parseInt(userId));
+                    return { user, count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+            document.getElementById('active-borrowers').innerHTML = activeBorrowers.length > 0 ?
+                activeBorrowers.map(item => `<p>${item.user?.name} (${item.count} active loans)</p>`).join('') :
+                '<p>No active borrowers yet.</p>';
+
+            // Overdue items
+            const overdueLoans = loans.filter(loan =>
+                !loan.returned && new Date(loan.dueDate) < new Date()
+            );
+            document.getElementById('overdue-items').innerHTML = overdueLoans.length > 0 ?
+                overdueLoans.map(loan => {
+                    const book = books.find(b => b.id === loan.bookId);
+                    const user = users.find(u => u.id === loan.userId);
+                    const daysOverdue = Math.floor((new Date() - new Date(loan.dueDate)) / (1000 * 60 * 60 * 24));
+                    return `<p>${book?.title} - ${user?.name} (${daysOverdue} days overdue)</p>`;
+                }).join('') :
+                '<p>No overdue items.</p>';
+        }
     </script>
 </body>
 </html>
