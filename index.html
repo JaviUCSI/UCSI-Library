@@ -280,19 +280,166 @@
         </div>
     </div>
     <script>
-        // Data storage using variables (for demo; use localStorage for persistence)
+        // API Configuration
+        const API_BASE_URL = 'http://localhost:3000/api';
+        
+        // Data storage for temporary operations
         let books = [];
         let users = [];
         let loans = [];
         let currentEditId = null;
-        let nextBookId = 1;
-        let nextUserId = 1;
-        let nextLoanId = 1;
+
+        // API Helper Functions
+        class LibraryAPI {
+            static async request(url, options = {}) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}${url}`, {
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...options.headers
+                        },
+                        ...options
+                    });
+                    
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.error || `HTTP error! status: ${response.status}`);
+                    }
+                    
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    alert(`Error: ${error.message}`);
+                    throw error;
+                }
+            }
+
+            // Books API
+            static async getBooks() {
+                return this.request('/books');
+            }
+
+            static async createBook(bookData) {
+                return this.request('/books', {
+                    method: 'POST',
+                    body: JSON.stringify(bookData)
+                });
+            }
+
+            static async updateBook(id, bookData) {
+                return this.request(`/books/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(bookData)
+                });
+            }
+
+            static async deleteBook(id) {
+                return this.request(`/books/${id}`, {
+                    method: 'DELETE'
+                });
+            }
+
+            static async getPopularBooks() {
+                return this.request('/books/popular');
+            }
+
+            // Users API
+            static async getUsers() {
+                return this.request('/users');
+            }
+
+            static async createUser(userData) {
+                return this.request('/users', {
+                    method: 'POST',
+                    body: JSON.stringify(userData)
+                });
+            }
+
+            static async updateUser(id, userData) {
+                return this.request(`/users/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(userData)
+                });
+            }
+
+            static async deleteUser(id) {
+                return this.request(`/users/${id}`, {
+                    method: 'DELETE'
+                });
+            }
+
+            // Loans API
+            static async getLoans() {
+                return this.request('/loans');
+            }
+
+            static async createLoan(loanData) {
+                return this.request('/loans', {
+                    method: 'POST',
+                    body: JSON.stringify(loanData)
+                });
+            }
+
+            static async returnLoan(id) {
+                return this.request(`/loans/${id}/return`, {
+                    method: 'PUT'
+                });
+            }
+
+            static async getOverdueLoans() {
+                return this.request('/loans/overdue');
+            }
+        }
 
         document.addEventListener('DOMContentLoaded', function() {
-            updateDashboard();
+            loadAllData();
             setDefaultDueDate();
         });
+
+        // Load all data from API
+        async function loadAllData() {
+            try {
+                await Promise.all([
+                    loadBooks(),
+                    loadUsers(),
+                    loadLoans()
+                ]);
+                updateDashboard();
+            } catch (error) {
+                console.error('Error loading data:', error);
+            }
+        }
+
+        async function loadBooks() {
+            try {
+                books = await LibraryAPI.getBooks();
+                renderBooks();
+            } catch (error) {
+                books = [];
+                renderBooks();
+            }
+        }
+
+        async function loadUsers() {
+            try {
+                users = await LibraryAPI.getUsers();
+                renderUsers();
+                updateLoanDropdowns();
+            } catch (error) {
+                users = [];
+                renderUsers();
+            }
+        }
+
+        async function loadLoans() {
+            try {
+                loans = await LibraryAPI.getLoans();
+                renderLoans();
+            } catch (error) {
+                loans = [];
+                renderLoans();
+            }
+        }
 
         function importBooks(event) {
             const file = event.target.files[0];
@@ -398,12 +545,12 @@
             const exportData = books.map(book => ({
                 Title: book.title,
                 Author: book.author,
-                ISBN: book.isbn || '',
+                Identifier: book.identifier || '',
                 Publisher: book.publisher || '',
-                Year: book.year || '',
+                Year: book.publicationYear || '',
                 Category: book.category || '',
                 Location: book.location || '',
-                Status: loans.some(loan => loan.bookId === book.id && !loan.returned) ? 'On Loan' : 'Available'
+                Status: loans.some(loan => loan.book._id === book._id && !loan.returned) ? 'On Loan' : 'Available'
             }));
             const worksheet = XLSX.utils.json_to_sheet(exportData);
             const workbook = XLSX.utils.book_new();
@@ -418,13 +565,13 @@
                 return;
             }
             const exportData = users.map(user => {
-                const activeLoans = loans.filter(loan => loan.userId === user.id && !loan.returned).length;
+                const activeLoans = loans.filter(loan => loan.user._id === user._id && !loan.returned).length;
                 return {
                     Name: user.name,
                     Email: user.email,
                     Type: user.type,
                     Phone: user.phone || '',
-                    Department: user.department || '',
+                    Department: user.department || user.class || '',
                     'Active Loans': activeLoans
                 };
             });
@@ -455,10 +602,8 @@
                 recentActivity.innerHTML = '<div class="card"><p>Welcome to your Library Management System! Start by adding some books and users.</p></div>';
             } else {
                 recentActivity.innerHTML = recentLoans.map(loan => {
-                    const book = books.find(b => b.id === loan.bookId);
-                    const user = users.find(u => u.id === loan.userId);
                     const status = loan.returned ? 'Returned' : 'Borrowed';
-                    return `<div class="card"><strong>${book?.title || 'Unknown Book'}</strong> ${status.toLowerCase()} by <strong>${user?.name || 'Unknown User'}</strong> on ${new Date(loan.loanDate).toLocaleDateString()}</div>`;
+                    return `<div class="card"><strong>${loan.book?.title || 'Unknown Book'}</strong> ${status.toLowerCase()} by <strong>${loan.user?.name || 'Unknown User'}</strong> on ${new Date(loan.loanDate).toLocaleDateString()}</div>`;
                 }).join('');
             }
         }
@@ -478,12 +623,12 @@
             document.getElementById('book-modal').style.display = 'block';
             document.getElementById('book-modal-title').textContent = book ? 'Edit Book' : 'Add New Book';
             if (book) {
-                currentEditId = book.id;
+                currentEditId = book._id;
                 document.getElementById('book-title').value = book.title || '';
                 document.getElementById('book-author').value = book.author || '';
-                document.getElementById('book-isbn').value = book.isbn || '';
+                document.getElementById('book-isbn').value = book.identifier || '';
                 document.getElementById('book-publisher').value = book.publisher || '';
-                document.getElementById('book-year').value = book.year || '';
+                document.getElementById('book-year').value = book.publicationYear || '';
                 document.getElementById('book-category').value = book.category || '';
                 document.getElementById('book-location').value = book.location || '';
             } else {
@@ -492,26 +637,30 @@
             }
         }
 
-        function saveBook(event) {
+        async function saveBook(event) {
             event.preventDefault();
             const bookData = {
                 title: document.getElementById('book-title').value,
                 author: document.getElementById('book-author').value,
-                isbn: document.getElementById('book-isbn').value,
+                identifier: document.getElementById('book-isbn').value, // Map ISBN to identifier
                 publisher: document.getElementById('book-publisher').value,
-                year: document.getElementById('book-year').value,
+                publicationYear: parseInt(document.getElementById('book-year').value) || undefined,
                 category: document.getElementById('book-category').value,
                 location: document.getElementById('book-location').value
             };
-            if (currentEditId) {
-                const bookIndex = books.findIndex(book => book.id === currentEditId);
-                if (bookIndex !== -1) books[bookIndex] = { ...books[bookIndex], ...bookData };
-            } else {
-                books.push({ id: nextBookId++, ...bookData });
+            
+            try {
+                if (currentEditId) {
+                    await LibraryAPI.updateBook(currentEditId, bookData);
+                } else {
+                    await LibraryAPI.createBook(bookData);
+                }
+                closeModal('book-modal');
+                await loadBooks();
+                updateDashboard();
+            } catch (error) {
+                // Error already handled in API class
             }
-            closeModal('book-modal');
-            renderBooks();
-            updateDashboard();
         }
 
         function renderBooks() {
@@ -521,34 +670,41 @@
                 return;
             }
             booksList.innerHTML = books.map(book => {
-                const isAvailable = !loans.some(loan => loan.bookId === book.id && !loan.returned);
+                const isAvailable = !loans.some(loan => loan.book._id === book._id && !loan.returned);
                 return `<div class="card">
                         <h3>${book.title}</h3>
                         <p><strong>Author:</strong> ${book.author}</p>
-                        <p><strong>ISBN:</strong> ${book.isbn || 'N/A'}</p>
+                        <p><strong>Identifier:</strong> ${book.identifier || 'N/A'}</p>
                         <p><strong>Publisher:</strong> ${book.publisher || 'N/A'}</p>
-                        <p><strong>Year:</strong> ${book.year || 'N/A'}</p>
+                        <p><strong>Year:</strong> ${book.publicationYear || 'N/A'}</p>
                         <p><strong>Category:</strong> ${book.category || 'N/A'}</p>
                         <p><strong>Location:</strong> ${book.location || 'N/A'}</p>
                         <p class="${isAvailable ? 'status-available' : 'status-borrowed'}">${isAvailable ? '✅ Available' : '❌ On Loan'}</p>
                         <div style="margin-top: 15px;">
-                            <button class="btn" onclick="editBook(${book.id})">Edit</button>
-                            <button class="btn btn-danger" onclick="deleteBook(${book.id})">Delete</button>
+                            <button class="btn" onclick="editBook('${book._id}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteBook('${book._id}')">Delete</button>
                         </div>
                     </div>`;
             }).join('');
         }
 
         function editBook(id) {
-            const book = books.find(b => b.id === id);
-            if (book) openBookModal(book);
+            const book = books.find(b => b._id === id);
+            if (book) {
+                currentEditId = id;
+                openBookModal(book);
+            }
         }
 
-        function deleteBook(id) {
+        async function deleteBook(id) {
             if (confirm('Are you sure you want to delete this book?')) {
-                books = books.filter(book => book.id !== id);
-                renderBooks();
-                updateDashboard();
+                try {
+                    await LibraryAPI.deleteBook(id);
+                    await loadBooks();
+                    updateDashboard();
+                } catch (error) {
+                    // Error already handled in API class
+                }
             }
         }
 
@@ -557,7 +713,7 @@
             const filteredBooks = books.filter(book =>
                 book.title.toLowerCase().includes(searchTerm) ||
                 book.author.toLowerCase().includes(searchTerm) ||
-                (book.isbn && book.isbn.toLowerCase().includes(searchTerm)) ||
+                (book.identifier && book.identifier.toLowerCase().includes(searchTerm)) ||
                 (book.category && book.category.toLowerCase().includes(searchTerm))
             );
             const booksList = document.getElementById('books-list');
@@ -575,37 +731,41 @@
             document.getElementById('user-modal').style.display = 'block';
             document.getElementById('user-modal-title').textContent = user ? 'Edit User' : 'Add New User';
             if (user) {
-                currentEditId = user.id;
+                currentEditId = user._id;
                 document.getElementById('user-name').value = user.name || '';
                 document.getElementById('user-email').value = user.email || '';
-                document.getElementById('user-type').value = user.type || 'student';
+                document.getElementById('user-type').value = user.type || 'Student';
                 document.getElementById('user-phone').value = user.phone || '';
-                document.getElementById('user-department').value = user.department || '';
+                document.getElementById('user-department').value = user.department || user.class || '';
             } else {
                 currentEditId = null;
                 document.getElementById('user-form').reset();
             }
         }
 
-        function saveUser(event) {
+        async function saveUser(event) {
             event.preventDefault();
             const userData = {
                 name: document.getElementById('user-name').value,
                 email: document.getElementById('user-email').value,
                 type: document.getElementById('user-type').value,
                 phone: document.getElementById('user-phone').value,
+                class: document.getElementById('user-department').value, // Map department to class
                 department: document.getElementById('user-department').value
             };
-            if (currentEditId) {
-                const userIndex = users.findIndex(user => user.id === currentEditId);
-                if (userIndex !== -1) users[userIndex] = { ...users[userIndex], ...userData };
-            } else {
-                users.push({ id: nextUserId++, ...userData });
+            
+            try {
+                if (currentEditId) {
+                    await LibraryAPI.updateUser(currentEditId, userData);
+                } else {
+                    await LibraryAPI.createUser(userData);
+                }
+                closeModal('user-modal');
+                await loadUsers();
+                updateDashboard();
+            } catch (error) {
+                // Error already handled in API class
             }
-            closeModal('user-modal');
-            renderUsers();
-            updateLoanDropdowns();
-            updateDashboard();
         }
 
         function renderUsers() {
@@ -615,38 +775,44 @@
                 return;
             }
             usersList.innerHTML = users.map(user => {
-                const activeLoans = loans.filter(loan => loan.userId === user.id && !loan.returned).length;
+                const activeLoans = loans.filter(loan => loan.user._id === user._id && !loan.returned).length;
                 return `<div class="card">
                         <h3>${user.name}</h3>
                         <p><strong>Email:</strong> ${user.email}</p>
                         <p><strong>Type:</strong> ${user.type}</p>
                         <p><strong>Phone:</strong> ${user.phone || 'N/A'}</p>
-                        <p><strong>Department/Class:</strong> ${user.department || 'N/A'}</p>
+                        <p><strong>Department/Class:</strong> ${user.department || user.class || 'N/A'}</p>
                         <p><strong>Active Loans:</strong> ${activeLoans}</p>
                         <div style="margin-top: 15px;">
-                            <button class="btn" onclick="editUser(${user.id})">Edit</button>
-                            <button class="btn btn-danger" onclick="deleteUser(${user.id})">Delete</button>
+                            <button class="btn" onclick="editUser('${user._id}')">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteUser('${user._id}')">Delete</button>
                         </div>
                     </div>`;
             }).join('');
         }
 
         function editUser(id) {
-            const user = users.find(u => u.id === id);
-            if (user) openUserModal(user);
+            const user = users.find(u => u._id === id);
+            if (user) {
+                currentEditId = id;
+                openUserModal(user);
+            }
         }
 
-        function deleteUser(id) {
-            const hasActiveLoans = loans.some(loan => loan.userId === id && !loan.returned);
+        async function deleteUser(id) {
+            const hasActiveLoans = loans.some(loan => loan.user._id === id && !loan.returned);
             if (hasActiveLoans) {
                 alert('Cannot delete user with active loans. Please return all books first.');
                 return;
             }
             if (confirm('Are you sure you want to delete this user?')) {
-                users = users.filter(user => user.id !== id);
-                renderUsers();
-                updateLoanDropdowns();
-                updateDashboard();
+                try {
+                    await LibraryAPI.deleteUser(id);
+                    await loadUsers();
+                    updateDashboard();
+                } catch (error) {
+                    // Error already handled in API class
+                }
             }
         }
 
@@ -685,34 +851,36 @@
         function updateLoanDropdowns() {
             const bookSelect = document.getElementById('loan-book');
             const availableBooks = books.filter(book =>
-                !loans.some(loan => loan.bookId === book.id && !loan.returned)
+                !loans.some(loan => loan.book._id === book._id && !loan.returned)
             );
             bookSelect.innerHTML = '<option value="">Select a book...</option>' +
                 availableBooks.map(book =>
-                    `<option value="${book.id}">${book.title} by ${book.author}</option>`
+                    `<option value="${book._id}">${book.title} by ${book.author}</option>`
                 ).join('');
             const userSelect = document.getElementById('loan-user');
             userSelect.innerHTML = '<option value="">Select a user...</option>' +
                 users.map(user =>
-                    `<option value="${user.id}">${user.name} (${user.type})</option>`
+                    `<option value="${user._id}">${user.name} (${user.type})</option>`
                 ).join('');
         }
 
-        function saveLoan(event) {
+        async function saveLoan(event) {
             event.preventDefault();
             const loanData = {
-                id: nextLoanId++,
-                bookId: parseInt(document.getElementById('loan-book').value),
-                userId: parseInt(document.getElementById('loan-user').value),
-                loanDate: new Date().toISOString().split('T')[0],
-                dueDate: document.getElementById('loan-due-date').value,
-                returned: false
+                user: document.getElementById('loan-user').value,
+                book: document.getElementById('loan-book').value,
+                dueDate: document.getElementById('loan-due-date').value
             };
-            loans.push(loanData);
-            closeModal('loan-modal');
-            renderLoans();
-            renderBooks();
-            updateDashboard();
+            
+            try {
+                await LibraryAPI.createLoan(loanData);
+                closeModal('loan-modal');
+                await loadLoans();
+                await loadBooks();  // Refresh books to update availability status
+                updateDashboard();
+            } catch (error) {
+                // Error already handled in API class
+            }
         }
 
         function renderLoans() {
@@ -722,13 +890,11 @@
                 return;
             }
             loansList.innerHTML = loans.map(loan => {
-                const book = books.find(b => b.id === loan.bookId);
-                const user = users.find(u => u.id === loan.userId);
                 const isOverdue = !loan.returned && new Date(loan.dueDate) < new Date();
                 return `<div class="card">
-                        <h3>${book?.title || 'Unknown Book'}</h3>
+                        <h3>${loan.book?.title || 'Unknown Book'}</h3>
                         <div class="loan-info">
-                            <p><strong>Borrower:</strong> ${user?.name || 'Unknown User'}</p>
+                            <p><strong>Borrower:</strong> ${loan.user?.name || 'Unknown User'}</p>
                             <p><strong>Loan Date:</strong> ${new Date(loan.loanDate).toLocaleDateString()}</p>
                             <p><strong>Due Date:</strong> ${new Date(loan.dueDate).toLocaleDateString()}</p>
                             ${loan.returned ?
@@ -739,31 +905,29 @@
                             }
                         </div>
                         ${!loan.returned ?
-                            `<button class="btn btn-success" onclick="returnBook(${loan.id})">Mark as Returned</button>` :
+                            `<button class="btn btn-success" onclick="returnBook('${loan._id}')">Mark as Returned</button>` :
                             '<p class="status-available">✅ Returned</p>'
                         }
                     </div>`;
             }).join('');
         }
 
-        function returnBook(loanId) {
-            const loan = loans.find(l => l.id === loanId);
-            if (loan) {
-                loan.returned = true;
-                loan.returnDate = new Date().toISOString().split('T')[0];
-                renderLoans();
-                renderBooks();
+        async function returnBook(loanId) {
+            try {
+                await LibraryAPI.returnLoan(loanId);
+                await loadLoans();
+                await loadBooks();  // Refresh books to update availability status
                 updateDashboard();
+            } catch (error) {
+                // Error already handled in API class
             }
         }
 
         function searchLoans() {
             const searchTerm = document.getElementById('loan-search').value.toLowerCase();
             const filteredLoans = loans.filter(loan => {
-                const book = books.find(b => b.id === loan.bookId);
-                const user = users.find(u => u.id === loan.userId);
-                return (book?.title.toLowerCase().includes(searchTerm)) ||
-                    (user?.name.toLowerCase().includes(searchTerm));
+                return (loan.book?.title.toLowerCase().includes(searchTerm)) ||
+                    (loan.user?.name.toLowerCase().includes(searchTerm));
             });
             const loansList = document.getElementById('loans-list');
             if (filteredLoans.length === 0 && loans.length > 0) {
@@ -776,51 +940,43 @@
             loans = originalLoans;
         }
 
-        function generateReports() {
-            // Popular books
-            const bookLoans = {};
-            loans.forEach(loan => {
-                bookLoans[loan.bookId] = (bookLoans[loan.bookId] || 0) + 1;
-            });
-            const popularBooks = Object.entries(bookLoans)
-                .map(([bookId, count]) => {
-                    const book = books.find(b => b.id === parseInt(bookId));
-                    return { book, count };
-                })
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
-            document.getElementById('popular-books').innerHTML = popularBooks.length > 0 ?
-                popularBooks.map(item => `<p>${item.book?.title} (${item.count} loans)</p>`).join('') :
-                '<p>No loan data available yet.</p>';
+        async function generateReports() {
+            try {
+                // Get popular books from API
+                const popularBooksData = await LibraryAPI.getPopularBooks();
+                document.getElementById('popular-books').innerHTML = popularBooksData.length > 0 ?
+                    popularBooksData.slice(0, 5).map(item => `<p>${item.title} (${item.loanCount} loans)</p>`).join('') :
+                    '<p>No loan data available yet.</p>';
 
-            // Active borrowers
-            const userLoans = {};
-            loans.filter(loan => !loan.returned).forEach(loan => {
-                userLoans[loan.userId] = (userLoans[loan.userId] || 0) + 1;
-            });
-            const activeBorrowers = Object.entries(userLoans)
-                .map(([userId, count]) => {
-                    const user = users.find(u => u.id === parseInt(userId));
-                    return { user, count };
-                })
-                .sort((a, b) => b.count - a.count)
-                .slice(0, 5);
-            document.getElementById('active-borrowers').innerHTML = activeBorrowers.length > 0 ?
-                activeBorrowers.map(item => `<p>${item.user?.name} (${item.count} active loans)</p>`).join('') :
-                '<p>No active borrowers yet.</p>';
+                // Active borrowers
+                const userLoans = {};
+                loans.filter(loan => !loan.returned).forEach(loan => {
+                    userLoans[loan.user._id] = (userLoans[loan.user._id] || 0) + 1;
+                });
+                const activeBorrowers = Object.entries(userLoans)
+                    .map(([userId, count]) => {
+                        const user = users.find(u => u._id === userId);
+                        return { user, count };
+                    })
+                    .sort((a, b) => b.count - a.count)
+                    .slice(0, 5);
+                document.getElementById('active-borrowers').innerHTML = activeBorrowers.length > 0 ?
+                    activeBorrowers.map(item => `<p>${item.user?.name} (${item.count} active loans)</p>`).join('') :
+                    '<p>No active borrowers yet.</p>';
 
-            // Overdue items
-            const overdueLoans = loans.filter(loan =>
-                !loan.returned && new Date(loan.dueDate) < new Date()
-            );
-            document.getElementById('overdue-items').innerHTML = overdueLoans.length > 0 ?
-                overdueLoans.map(loan => {
-                    const book = books.find(b => b.id === loan.bookId);
-                    const user = users.find(u => u.id === loan.userId);
-                    const daysOverdue = Math.floor((new Date() - new Date(loan.dueDate)) / (1000 * 60 * 60 * 24));
-                    return `<p>${book?.title} - ${user?.name} (${daysOverdue} days overdue)</p>`;
-                }).join('') :
-                '<p>No overdue items.</p>';
+                // Overdue items
+                const overdueLoans = loans.filter(loan =>
+                    !loan.returned && new Date(loan.dueDate) < new Date()
+                );
+                document.getElementById('overdue-items').innerHTML = overdueLoans.length > 0 ?
+                    overdueLoans.slice(0, 5).map(loan => {
+                        const daysOverdue = Math.floor((new Date() - new Date(loan.dueDate)) / (1000 * 60 * 60 * 24));
+                        return `<p>${loan.book?.title} - ${loan.user?.name} (${daysOverdue} days overdue)</p>`;
+                    }).join('') :
+                    '<p>No overdue items.</p>';
+            } catch (error) {
+                console.error('Error generating reports:', error);
+            }
         }
     </script>
 </body>

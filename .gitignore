@@ -1,0 +1,33 @@
+# Dependencies
+server/node_modules/
+server/package-lock.json
+
+# Environment variables
+server/.env
+
+# Logs
+server/logs/
+server/*.log
+
+# Runtime data
+server/pids/
+server/*.pid
+server/*.seed
+
+# Coverage directory used by tools like istanbul
+server/coverage/
+
+# IDE/Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
